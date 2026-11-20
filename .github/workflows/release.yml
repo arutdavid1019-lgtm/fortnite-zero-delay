@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and publish
+      - name: Verify and publish
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -18,9 +18,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = (Get-Content VERSION -Raw).Trim()
           if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Invalid version' }
-          $source = 'using System.Reflection; [assembly:AssemblyVersion("' + $version + '")] internal static class ReleaseInfo { internal const string Repository="' + $env:GITHUB_REPOSITORY + '"; }'
-          Set-Content ReleaseInfo.cs $source -Encoding ascii
-          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /codepage:65001 /target:winexe /r:System.Web.Extensions.dll /win32icon:star.ico /resource:star.ico,FortnitePreset.Star.ico /out:FortnitePreset-Star.exe Window.cs Native.cs Updater.cs ReleaseInfo.cs
-          if ($LASTEXITCODE) { throw 'Compilation failed' }
+          $actual = [Reflection.AssemblyName]::GetAssemblyName((Resolve-Path FortnitePreset-Star.exe)).Version.ToString()
+          if ($actual -ne $version) { throw 'Executable version mismatch' }
           gh release create "v$version" FortnitePreset-Star.exe --target $env:GITHUB_SHA --title "Fortnite Preset $version" --generate-notes
           exit $LASTEXITCODE
